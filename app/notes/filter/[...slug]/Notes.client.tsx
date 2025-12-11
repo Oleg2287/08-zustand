@@ -7,31 +7,32 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import NoteList from "../../../../components/NoteList/NoteList";
 import Pagination from "../../../../components/Pagination/Pagination";
 import SearchBox from "../../../../components/SearchBox/SearchBox";
-import { useDebouncedCallback } from "use-debounce";
+import { useDebounce } from "use-debounce";
 import Link from "next/link";
 
 export default function NotesClient({ tag }: { tag?: string }) {
-  const [searchWord, setSearchWord] = useState<string>("");
+  const [searchWord, setSearchWord] = useState("");
   const [page, setPage] = useState(1);
 
-  const handleChange = useDebouncedCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setSearchWord(event.target.value);
-      setPage(1);
-    },
-    1000,
-  );
+  const [debouncedSearchWord] = useDebounce(searchWord, 1000);
 
   const { data } = useQuery({
-    queryKey: ["myNoteHubKey", searchWord, page, tag],
-    queryFn: () => fetchNotes(searchWord, page, tag),
+    queryKey: ["myNoteHubKey", debouncedSearchWord, page, tag],
+    queryFn: () => fetchNotes(debouncedSearchWord, page, tag),
     placeholderData: keepPreviousData,
   });
 
   return (
     <div className={css.app}>
       <div className={css.toolbar}>
-        {<SearchBox value={searchWord} onChange={handleChange} />}
+        <SearchBox
+          value={searchWord}
+          onChange={(e) => {
+            setSearchWord(e.target.value);
+            setPage(1);
+          }}
+        />
+
         {data && data?.notes.length > 0 && (
           <Pagination
             totalPages={data?.totalPages ?? 0}
@@ -39,13 +40,15 @@ export default function NotesClient({ tag }: { tag?: string }) {
             onPageChange={(newPage) => setPage(newPage)}
           />
         )}
-        {
-          <Link className={css.button} href={"/notes/action/create"}>
-            Create note +
-          </Link>
-        }
+
+        <Link className={css.button} href={"/notes/action/create"}>
+          Create note +
+        </Link>
       </div>
-      {data && data?.notes.length > 0 && <NoteList notes={data?.notes} />}
+
+      {data && data?.notes.length > 0 && (
+        <NoteList notes={data?.notes} />
+      )}
     </div>
   );
 }
